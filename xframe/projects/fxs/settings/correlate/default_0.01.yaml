@@ -121,4 +121,8 @@ IO:
         _value: background.raw
       folder:
         _value: in_base
-    
+    sacla_settings:
+      name:
+        _value: null
+      folder:
+        _value: in_base

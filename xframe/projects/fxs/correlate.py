@@ -19,6 +19,7 @@ from xframe.library.pythonLibrary import xprint
 from xframe.library.physicsLibrary import scattering_angle_to_reciprocal_radii
 from xframe import Multiprocessing
 from .projectLibrary.cross_correlation import ccf_analysis
+from .sacla import SaclaDataReader
 Pi = np.pi
 log=logging.getLogger('root')
 
@@ -94,8 +95,13 @@ class ProjectWorker(ProjectWorkerInterface):
 
         
         args[4] = database.project.get_path('input_file_list')
-        #log.info(f'len arg names - {len(arg_names)} len args = {len(args)}')            
-        self.data_reader = DataReader(*args)
+                #log.info(f'len arg names - {len(arg_names)} len args = {len(args)}')            
+
+        sacla_settings = database.project.get_path('sacla_settings')
+        if sacla_settings is None:
+            self.data_reader = DataReader(*args)
+        else:
+            self.data_reader = SaclaDataReader(*args, sacla_settings=sacla_settings)
         
     def run(self):
         result = self.data_reader.run_processing_in_parallel()
