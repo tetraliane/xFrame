@@ -163,13 +163,14 @@ class SaclaDataReader(DataReader):
     def _read_binary_2D_arr(
         self, fname: str, shape: Tuple[int, int], dtype="f", bo="<"
     ) -> npt.NDArray[np.float32]:
-        shape = tuple(shape)
+        shape = tuple(np.array(shape) * self.sacla_settings.bin_size)
         data = read_dataset(fname, shape).astype(np.float32)
 
         if self.sacla_settings.background is not None:
             bg = read_dataset(self.sacla_settings.background, shape)
             data -= bg
 
+        data = binning(data, self.sacla_settings.bin_size)
         data *= (
             self.sacla_settings.detector_system_gain
             / self.sacla_settings.photon_energy
@@ -184,6 +185,7 @@ class SaclaSettings:
     detector_system_gain: float
     photon_energy: float
     background: Union[str, None] = None
+    bin_size: int = 1
 
     @classmethod
     def load(cls, path: str) -> "SaclaSettings":
@@ -196,6 +198,7 @@ class SaclaSettings:
             detector_system_gain=float(s["detector_system_gain"]),
             photon_energy=float(s["photon_energy"]),
             background=s.get("background", None),
+            bin_size=int(s.get("bin_size", 1)),
         )
 
 
@@ -212,3 +215,13 @@ def read_dataset(path: str, shape: Tuple[int, int]):
         d = f[name][:]
     assert d.shape == shape
     return d
+
+
+def binning(img: npt.NDArray[np.float32], bin_size: int) -> npt.NDArray[np.float32]:
+    if bin_size == 1:
+        return img
+    if img.ndim != 2:
+        raise Exception(f"invalid image shape: {img.shape}")
+    return img.reshape(
+        img.shape[0] // bin_size, bin_size, img.shape[1] // bin_size, bin_size
+    ).sum(axis=(1, 3))
