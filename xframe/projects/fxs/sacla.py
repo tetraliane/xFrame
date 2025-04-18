@@ -170,12 +170,10 @@ class SaclaDataReader(DataReader):
             bg = read_dataset(self.sacla_settings.background, shape)
             data -= bg
 
+        data *= self.sacla_settings.detector_system_gain
+        data[data < self.sacla_settings.e_threshold] = 0
+        data *= 3.65 / self.sacla_settings.photon_energy
         data = binning(data, self.sacla_settings.bin_size)
-        data *= (
-            self.sacla_settings.detector_system_gain
-            / self.sacla_settings.photon_energy
-            * 3.65
-        )
 
         return data
 
@@ -186,6 +184,7 @@ class SaclaSettings:
     photon_energy: float
     background: Union[str, None] = None
     bin_size: int = 1
+    e_threshold: float = 0.0
 
     @classmethod
     def load(cls, path: str) -> "SaclaSettings":
@@ -199,6 +198,7 @@ class SaclaSettings:
             photon_energy=float(s["photon_energy"]),
             background=s.get("background", None),
             bin_size=int(s.get("bin_size", 1)),
+            e_threshold=float(s.get("e_threshold", 0.0)),
         )
 
 
