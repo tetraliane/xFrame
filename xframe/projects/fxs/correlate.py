@@ -96,11 +96,11 @@ class ProjectWorker(ProjectWorkerInterface):
         args[4] = database.project.get_path('input_file_list')
                 #log.info(f'len arg names - {len(arg_names)} len args = {len(args)}')            
 
-        sacla_settings = database.project.get_path('sacla_settings')
-        if sacla_settings is None:
+        if settings.project.get('io_mode') != 'sacla':
             self.data_reader = DataReader(*args)
         else:
             from .sacla import SaclaDataReader
+            sacla_settings = database.project.get_path('sacla_settings')
             self.data_reader = SaclaDataReader(*args, sacla_settings=sacla_settings)
         
     def run(self):

@@ -73,6 +73,12 @@ profile:
   process_id:
     _value: 1
 
+io_mode:
+  _possible_values:
+    - binary
+    - sacla
+  _value: binary
+
 IO:
   folders:
     home:
