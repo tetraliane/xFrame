@@ -1,9 +1,10 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 import os
 import re
 import sys
 import time
-from typing import Tuple, Union
+from typing import Union
 
 import h5py
 import numpy as np
@@ -161,13 +162,12 @@ class SaclaDataReader(DataReader):
             )
 
     def _read_binary_2D_arr(
-        self, fname: str, shape: Tuple[int, int], dtype="f", bo="<"
+        self, fname: str, shape: "Sequence[int]", dtype="f", bo="<"
     ) -> npt.NDArray[np.float32]:
-        shape = tuple(np.array(shape) * self.sacla_settings.bin_size)
-        data = read_dataset(fname, shape).astype(np.float32)
+        data = read_dataset(fname).astype(np.float32)
 
         if self.sacla_settings.background is not None:
-            bg = read_dataset(self.sacla_settings.background, shape)
+            bg = read_dataset(self.sacla_settings.background)
             data -= bg
 
         data *= self.sacla_settings.detector_system_gain
@@ -175,6 +175,8 @@ class SaclaDataReader(DataReader):
         data *= 3.65 / self.sacla_settings.photon_energy
         data = binning(data, self.sacla_settings.bin_size)
 
+        if list(data.shape) != list(shape):
+            raise ValueError(f"expected shape is {shape} but got {shape}")
         return data
 
 
@@ -205,7 +207,7 @@ class SaclaSettings:
 FNAME_RE = re.compile(r"(.+\.h5)(.+)")
 
 
-def read_dataset(path: str, shape: Tuple[int, int]):
+def read_dataset(path: str):
     m = FNAME_RE.match(path)
     if m is None:
         raise Exception(f"invalid path: {path}")
@@ -213,15 +215,33 @@ def read_dataset(path: str, shape: Tuple[int, int]):
 
     with h5py.File(file) as f:
         d = f[name][:]
-    assert d.shape == shape
     return d
 
 
+# Apply binning to the image. The image size will be an odd number.
 def binning(img: npt.NDArray[np.float32], bin_size: int) -> npt.NDArray[np.float32]:
     if bin_size == 1:
         return img
-    if img.ndim != 2:
+    if bin_size % 2 == 0:
+        raise Exception("binning size must be odd")
+    if img.ndim != 2 or img.shape[0] != img.shape[1]:
         raise Exception(f"invalid image shape: {img.shape}")
-    return img.reshape(
-        img.shape[0] // bin_size, bin_size, img.shape[1] // bin_size, bin_size
-    ).sum(axis=(1, 3))
+
+    size = img.shape[0]
+    center = size // 2
+
+    new_size = size // bin_size
+    if new_size % 2 == 0:
+        new_size -= 1
+    if new_size < 1:
+        raise Exception("binning size too large")
+
+    new_image = img[
+        center - (new_size * bin_size) // 2 : center + (new_size * bin_size) // 2 + 1,
+        center - (new_size * bin_size) // 2 : center + (new_size * bin_size) // 2 + 1,
+    ]
+    new_image = new_image.reshape(new_size, bin_size, new_size, bin_size)
+    new_image = new_image.sum(axis=(1, 3))
+    new_image = (new_image / (bin_size * bin_size)).astype(np.float32)
+
+    return new_image
