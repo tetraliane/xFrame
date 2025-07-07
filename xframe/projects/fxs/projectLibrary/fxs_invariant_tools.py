@@ -1120,7 +1120,8 @@ def deg2_invariant_eigenvalues(b_matrix,sort_mode=0):
 
     # Comment In some 2d examples sorting purely by eigenvalue(sort_mode == 0) has failed due to a verry small associated eigenvetor (which was almost everywhere 0)
     b_matrix = (b_matrix + b_matrix.T.conj())/2
-    is_zero = np.isclose(b_matrix,0).all() 
+    #is_zero = np.isclose(b_matrix,0).all()
+    is_zero = False
     if not is_zero:
         # at the time of writing this code comparing the eigen_decomposition of b_matrix with itself yielded lower errors when using scipy linalg.eigh with driver 'ev'. 
         eig_vals,eig_vect=sp.linalg.eigh(b_matrix,driver = 'ev') 
