@@ -1,10 +1,13 @@
 from collections.abc import Sequence
+import csv
 from dataclasses import dataclass
+import functools
+import logging
 import os
 import re
 import sys
 import time
-from typing import Union
+from typing import Tuple, Union
 
 import h5py
 import numpy as np
@@ -14,6 +17,8 @@ from ruamel.yaml import YAML
 from xframe import database, settings
 from .correlate import DataReader
 from .projectLibrary.cross_correlation import ccf_analysis
+
+logger = logging.getLogger(__name__)
 
 
 class SaclaDataReader(DataReader):
@@ -164,20 +169,54 @@ class SaclaDataReader(DataReader):
     def _read_binary_2D_arr(
         self, fname: str, shape: "Sequence[int]", dtype="f", bo="<"
     ) -> npt.NDArray[np.float32]:
-        data = read_dataset(fname).astype(np.float32)
+        # fname: /path/to/data.h5/detector_data,/path/to/data.h5/beam_monitor[index]
+        # The second part is optional.
+        path_list = fname.split(",")
+        data = read_dataset(path_list[0]).astype(np.float32)
 
         if self.sacla_settings.background is not None:
             bg = read_dataset(self.sacla_settings.background)
             data -= bg
 
-        data *= self.sacla_settings.detector_system_gain
-        data[data < self.sacla_settings.e_threshold] = 0
-        data *= 3.65 / self.sacla_settings.photon_energy
+        data = _into_photons(data, self.sacla_settings)
         data = binning(data, self.sacla_settings.bin_size)
+
+        if len(path_list) > 1:
+            logger.debug("Subtracting background (" + fname + ")")
+            bm = read_beam_monitor(path_list[1])
+            bg, bg_bm = self._background()
+            data -= bg * bm / bg_bm
 
         if list(data.shape) != list(shape):
             raise ValueError(f"expected shape is {shape} but got {shape}")
         return data
+
+    @functools.cache
+    def _background(self) -> Tuple[npt.NDArray[np.float32], float]:
+        if self.sacla_settings.subtract_input is None:
+            return np.zeros(self.img_shape, dtype=np.float32), 1
+
+        n_data = 0
+        avg = np.zeros(self.img_shape, dtype=np.float32)
+        bm = 0.0
+        with open(self.sacla_settings.subtract_input) as f:
+            reader = csv.reader(f)
+            for row in reader:
+                # row: /path/to/data.h5/detector_data,/path/to/data.h5/beam_monitor[index]
+                n_data += 1
+
+                path = row[0]
+                data = read_dataset(path).astype(np.float32)
+                data = _into_photons(data, self.sacla_settings)
+                data = binning(data, self.sacla_settings.bin_size)
+                np.add(avg, data, out=avg)
+
+                bm_path = row[1]
+                bm_value = read_beam_monitor(bm_path)
+                bm += bm_value
+
+        logger.info(f"Collected {n_data} patterns of background data")
+        return (avg / n_data).astype(np.float32), bm / n_data
 
 
 @dataclass
@@ -187,6 +226,7 @@ class SaclaSettings:
     background: Union[str, None] = None
     bin_size: int = 1
     e_threshold: float = 0.0
+    subtract_input: str | None = None
 
     @classmethod
     def load(cls, path: str) -> "SaclaSettings":
@@ -201,10 +241,12 @@ class SaclaSettings:
             background=s.get("background", None),
             bin_size=int(s.get("bin_size", 1)),
             e_threshold=float(s.get("e_threshold", 0.0)),
+            subtract_input=s.get("subtract_input", None),
         )
 
 
 FNAME_RE = re.compile(r"(.+\.h5)(.+)")
+FNAME_BM_RE = re.compile(r"(.+\.h5)(.+)\[(\d+)\]")
 
 
 def read_dataset(path: str):
@@ -216,6 +258,26 @@ def read_dataset(path: str):
     with h5py.File(file) as f:
         d = f[name][:]
     return d
+
+
+def read_beam_monitor(path: str) -> float:
+    m = FNAME_BM_RE.match(path)
+    if m is None:
+        raise Exception(f"invalid path: {path}")
+    file, name, index = m.group(1, 2, 3)
+
+    with h5py.File(file) as f:
+        d = f[name][int(index)]
+    return float(d)
+
+
+def _into_photons(
+    data: npt.NDArray[np.float32], sacla_settings: SaclaSettings
+) -> npt.NDArray[np.float32]:
+    data *= sacla_settings.detector_system_gain
+    data[data < sacla_settings.e_threshold] = 0
+    data *= 3.65 / sacla_settings.photon_energy
+    return data
 
 
 # Apply binning to the image. The image size will be an odd number.
