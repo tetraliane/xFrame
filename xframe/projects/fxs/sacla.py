@@ -5,6 +5,7 @@ import functools
 import logging
 import os
 import re
+import struct
 import sys
 import time
 from typing import Tuple, Union
@@ -110,7 +111,7 @@ class SaclaDataReader(DataReader):
         if self.mask_binary_inp == True:
             path = database.project.get_path("binary_mask")
             if os.path.exists(path):
-                self.mask_binary = self._read_binary_2D_arr(path, self.img_shape)
+                self.mask_binary = read_binary_file(path, self.img_shape)
             else:
                 print(
                     "Error: Input file {} with binary mask have not been found.\n".format(
@@ -243,6 +244,19 @@ class SaclaSettings:
             e_threshold=float(s.get("e_threshold", 0.0)),
             subtract_input=s.get("subtract_input", None),
         )
+
+
+def read_binary_file(
+    fname: str, shape: "Sequence[int]", dtype="f", bo="<"
+) -> npt.NDArray[np.float32]:
+    if not os.path.exists(fname):
+        raise FileNotFoundError(f"File {fname} does not exist")
+
+    with open(fname, "rb") as f:
+        data = f.read()
+        fmt = bo + str(shape[0] * shape[1]) + dtype
+        dtuple = struct.unpack(fmt, data)
+    return np.asarray(dtuple).reshape(shape)
 
 
 FNAME_RE = re.compile(r"(.+\.h5)(.+)")
