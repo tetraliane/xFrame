@@ -112,6 +112,7 @@ class SaclaDataReader(DataReader):
             path = database.project.get_path("binary_mask")
             if os.path.exists(path):
                 self.mask_binary = read_binary_file(path, self.img_shape)
+                self.mask_binary = self.mask_binary.astype(bool)
             else:
                 print(
                     "Error: Input file {} with binary mask have not been found.\n".format(
