@@ -292,6 +292,7 @@ def _into_photons(
     data *= sacla_settings.detector_system_gain
     data[data < sacla_settings.e_threshold] = 0
     data *= 3.65 / sacla_settings.photon_energy
+    data = np.round(data)
     return data
 
 
