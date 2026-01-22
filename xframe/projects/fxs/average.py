@@ -704,7 +704,14 @@ class ProjectWorker(ProjectWorkerInterface):
             reconstruction_arg = np.argmin(errors)
         elif selection_method == 'manual':
             m_spec = self.opt['selection']['manual_specifier']
-            reconstruction_arg = lookup_dict[m_spec[0]][str(m_spec[1])]
+            try:
+                reconstruction_arg = lookup_dict[m_spec[0]][str(m_spec[1])]
+            except KeyError as e:
+                raise Exception(
+                    "Failed to get reference: "
+                    f"No such reconstruction: [{m_spec[0]}, {m_spec[1]}] "
+                    "(maybe error limit is too small?)"
+                ) from e
         return reconstruction_arg
 
     def valid_maximal_density(self,max_density):
