@@ -24,7 +24,7 @@ plt = pltWrapper()
 inset_locator = locatorWrapper()
 
 def depencency_injection_hook_mpl():
-    matplotlib.rcParams['text.usetex'] = True
+    #matplotlib.rcParams['text.usetex'] = True
     module = sys.modules[__name__]
     module.plt = matplotlib.pyplot
 
