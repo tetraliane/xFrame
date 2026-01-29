@@ -164,7 +164,8 @@ class DataReader():
         if self.mask_binary_inp==True:
             path = database.project.get_path('binary_mask')
             if os.path.exists(path):
-                self.mask_binary=self._read_binary_2D_arr(path, self.img_shape)
+                mask = self._read_binary_2D_arr(path, self.img_shape)
+                self.mask_binary = (mask > 0).astype(int)
             else:
                 print('Error: Input file {} with binary mask have not been found.\n'.format(path))        
                 sys.exit(1)
