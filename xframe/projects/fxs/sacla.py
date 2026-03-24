@@ -188,6 +188,8 @@ class SaclaDataReader(DataReader):
             bm = read_beam_monitor(path_list[1])
             bg, bg_bm = self._background()
             data -= bg * bm / bg_bm
+        
+        data[data < 0] = 0
 
         if list(data.shape) != list(shape):
             raise ValueError(f"expected shape is {shape} but got {shape}")
