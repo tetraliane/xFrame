@@ -31,6 +31,7 @@ class ProjectWorker(ProjectWorkerInterface):
                 "fsc",
                 {"q": data.grid.reciprocal[:, 0, 0, 0], "fsc": fsc},
                 skip_custom_methods=False,
+                path_modifiers={"name": self.settings["name"]},
             )
         if "fsc_plot" in self.db.files:
             fig = plt.figure(layout="constrained")
@@ -40,7 +41,12 @@ class ProjectWorker(ProjectWorkerInterface):
             ax.axhline(0.5, color="black", linestyle="--")
             ax.set_xlabel("$q$ / $\\mathrm{\\AA}^{-1}$")
             ax.grid()
-            self.db.save("fsc_plot", fig, skip_custom_methods=False)
+            self.db.save(
+                "fsc_plot",
+                fig,
+                skip_custom_methods=False,
+                path_modifiers={"name": self.settings["name"]},
+            )
 
     def load_from_average(self) -> "LoadedData":
         with self.db.load("average_result1", as_h5_object=True) as f:

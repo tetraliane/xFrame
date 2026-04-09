@@ -1,0 +1,28 @@
+name: fsc_example
+fourier_transform:
+  mode: midpoint
+  max_order: 30
+IO:
+  folders:
+    home: /home/user/
+    data:
+      home: data/
+    results:
+      home: results/
+  files:
+    average_result1:
+      name: average_result1.h5
+      folder: data
+    average_result2:
+      name: average_result2.h5
+      folder: data
+    fsc:
+      name: "{name}.h5"
+      folder: results
+    fsc_plot:
+      name: "{name}.matplotlib"
+      folder: results
+      options:
+        _format: png
+        dpi: 300
+        bbox_inches: tight

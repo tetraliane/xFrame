@@ -36,6 +36,7 @@ class ProjectWorker(ProjectWorkerInterface):
                 "prtf",
                 {"q": data.grid.reciprocal[:, 0, 0, 0], "prtf": prtf},
                 skip_custom_methods=False,
+                path_modifiers={"name": self.settings["name"]},
             )
         if "prtf_plot" in self.db.files:
             fig = plt.figure(layout="constrained")
@@ -45,7 +46,12 @@ class ProjectWorker(ProjectWorkerInterface):
             ax.axhline(1 / np.e, color="black", linestyle="--")
             ax.set_xlabel("$q$ / $\\mathrm{\\AA}^{-1}$")
             ax.grid()
-            self.db.save("prtf_plot", fig, skip_custom_methods=False)
+            self.db.save(
+                "prtf_plot",
+                fig,
+                skip_custom_methods=False,
+                path_modifiers={"name": self.settings["name"]},
+            )
 
     def load_from_average(self) -> "LoadedData":
         with self.db.load("average_result", as_h5_object=True) as f:

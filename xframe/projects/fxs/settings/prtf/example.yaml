@@ -1,0 +1,25 @@
+name: prtf_example
+fourier_transform:
+  mode: midpoint
+  max_order: 30
+IO:
+  folders:
+    home: /home/user/
+    data:
+      home: data/
+    results:
+      home: results/
+  files:
+    average_result:
+      name: average_result.h5
+      folder: data
+    prtf:
+      name: "{name}.h5"
+      folder: results
+    prtf_plot:
+      name: "{name}.matplotlib"
+      folder: results
+      options:
+        _format: png
+        dpi: 300
+        bbox_inches: tight
