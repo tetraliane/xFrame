@@ -16,6 +16,14 @@ IO:
     average_result2:
       name: average_result2.h5
       folder: data
+    average_settings:
+      # Settings used for average command
+      name: average_settings.yaml
+      folder: data
+    reconstruction_settings:
+      # Settings used for reconstruction command
+      name: reconstruction_settings.yaml
+      folder: data
     fsc:
       name: "{name}.h5"
       folder: results

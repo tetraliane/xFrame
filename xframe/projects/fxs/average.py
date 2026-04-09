@@ -741,7 +741,7 @@ class Alignment():
             if settings.general.n_control_workers ==0:
                 settings.general.n_control_workers = self.r_opt['GPU'].get("n_gpu_workers",4)
                 Multiprocessing.comm_module.restart_control_worker()
-        self.ft_grids = self.r_opt.internal_grid
+        self.ft_grids = self.r_opt["internal_grid"]
         self.dimension = self.ft_grids.realGrid[:].shape[-1]
         self.db = db
         self.process_factory = process_factory

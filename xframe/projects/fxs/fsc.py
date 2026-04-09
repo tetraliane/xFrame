@@ -5,9 +5,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
+from xframe.database.database import SettingsParser
 from xframe.interfaces import ProjectWorkerInterface
 from xframe.settings.tools import DictNamespace
 from ._database_ import ProjectDB
+from .average import Alignment
+from .projectLibrary.classes import FTGridPair
+from .projectLibrary.misk import get_analysis_process_factory
 from .prtf import ComplexFunc, generate_ft
 
 
@@ -17,6 +21,14 @@ class ProjectWorker(ProjectWorkerInterface):
 
     def run(self):
         data = self.load_from_average()
+        average_settings = self.db.load("average_settings", path_modifiers={})
+        SettingsParser(None).recursive_command_execution(average_settings, None, None)
+        reconst_settings = self.db.load("reconstruction_settings", path_modifiers={})
+        reconst_settings["internal_grid"] = FTGridPair(*data.grid)
+
+        aligner = create_aligner(average_settings, reconst_settings, self.db)
+        aligned = aligner.apply_to(data.average1.real, data.average2)
+        new_average2 = aligned["densities"]
 
         ft, _ = generate_ft(
             data.grid.real,
@@ -24,7 +36,7 @@ class ProjectWorker(ProjectWorkerInterface):
             max_order=self.settings.get("fourier_transform", {}).get("max_order", 30),
             reciprocity_coef=data.reciprocity_coef,
         )
-        fsc = calc_fsc(ft, data.average1, data.average2)
+        fsc = calc_fsc(ft, data.average1.real, new_average2[0])
 
         if "fsc" in self.db.files:
             self.db.save(
@@ -43,7 +55,10 @@ class ProjectWorker(ProjectWorkerInterface):
 
     def load_from_average(self) -> "LoadedData":
         with self.db.load("average_result1", as_h5_object=True) as f:
-            average_reconst1 = f["average/real_density"][()]
+            average_reconst1 = DataPair(
+                real=f["centered_average/real_density"][()],
+                reciprocal=f["centered_average/reciprocal_density"][()],
+            )
             grid = DataPair(
                 real=f["internal_grid"]["real_grid"][()],
                 reciprocal=f["internal_grid"]["reciprocal_grid"][()],
@@ -51,7 +66,10 @@ class ProjectWorker(ProjectWorkerInterface):
             reciprocity_coef = f["reciprocity_coefficient"][()]
 
         with self.db.load("average_result2", as_h5_object=True) as f:
-            average_reconst2 = f["average/real_density"][()]
+            average_reconst2 = DataPair(
+                real=f["centered_average/real_density"][()],
+                reciprocal=f["centered_average/reciprocal_density"][()],
+            )
 
         return LoadedData(
             average1=average_reconst1,
@@ -63,15 +81,44 @@ class ProjectWorker(ProjectWorkerInterface):
 
 @dataclass
 class LoadedData:
-    average1: npt.NDArray[np.float64]
-    average2: npt.NDArray[np.float64]
+    average1: "DataPair"
+    average2: "DataPair"
     grid: "DataPair"
     reciprocity_coef: float
 
 
 class DataPair(NamedTuple):
-    real: npt.NDArray[np.float64]
-    reciprocal: npt.NDArray[np.float64]
+    real: npt.NDArray
+    reciprocal: npt.NDArray
+
+
+def create_aligner(
+    average_settings: DictNamespace, reconst_settings: DictNamespace, db: ProjectDB
+) -> Alignment:
+    aligner_options = {
+        "opt": {
+            "find_rotation": average_settings["find_rotation"],
+            "max_iterations": average_settings["max_iterations"],
+            "alignment_error_limit": average_settings["alignment_error_limit"],
+        },
+        "r_opt": {
+            "grid": {
+                "max_order": reconst_settings["grid"]["max_order"],
+                "n_radial_points": 128,
+                "n_theta": 72,
+                "n_phi": 140,
+            },
+            "GPU": reconst_settings["GPU"],
+            "internal_grid": reconst_settings["internal_grid"],
+            "fourier_transform": reconst_settings["fourier_transform"],
+        },
+    }
+
+    return Alignment(
+        get_analysis_process_factory(None, None),
+        db,
+        aligner_options,
+    )
 
 
 def calc_fsc(
