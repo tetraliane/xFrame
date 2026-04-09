@@ -34,16 +34,9 @@ class ProjectWorker(ProjectWorkerInterface):
                 path_modifiers={"name": self.settings["name"]},
             )
         if "fsc_plot" in self.db.files:
-            fig = plt.figure(layout="constrained")
-            ax = fig.add_subplot()
-            q = data.grid.reciprocal[:, 0, 0, 0]
-            ax.plot(q, fsc)
-            ax.axhline(0.5, color="black", linestyle="--")
-            ax.set_xlabel("$q$ / $\\mathrm{\\AA}^{-1}$")
-            ax.grid()
             self.db.save(
                 "fsc_plot",
-                fig,
+                plot(data.grid.reciprocal[:, 0, 0, 0], fsc),
                 skip_custom_methods=False,
                 path_modifiers={"name": self.settings["name"]},
             )
@@ -98,3 +91,17 @@ def calc_fsc(
         fsc[i] = num / denom if denom > 0 else 0
 
     return fsc
+
+
+def plot(
+    q: npt.NDArray[np.float64],
+    fsc: npt.NDArray[np.float64],
+) -> plt.Figure:
+    fig = plt.figure(layout="constrained")
+    ax = fig.add_subplot()
+    ax.plot(q, fsc)
+    ax.axhline(0.5, color="black", linestyle="--")
+    ax.set_xlabel("$q$ / $\\mathrm{\\AA}^{-1}$")
+    ax.set_ylabel("FSC")
+    ax.grid()
+    return fig
