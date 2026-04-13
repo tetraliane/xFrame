@@ -34,3 +34,6 @@ IO:
         _format: png
         dpi: 300
         bbox_inches: tight
+    aligned_averages_vtk:
+      name: "{name}.h5"
+      folder: results

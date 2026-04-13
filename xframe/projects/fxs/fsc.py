@@ -52,6 +52,16 @@ class ProjectWorker(ProjectWorkerInterface):
                 skip_custom_methods=False,
                 path_modifiers={"name": self.settings["name"]},
             )
+        if "aligned_averages_vtk" in self.db.files:
+            self.db.save(
+                "aligned_averages_vtk",
+                [np.real(data.average1.real), np.real(new_average2[0])],
+                dset_names=["average1", "average2"],
+                grid=data.grid.real,
+                grid_type="spherical",
+                skip_custom_methods=True,
+                path_modifiers={"name": self.settings["name"]},
+            )
 
     def load_from_average(self) -> "LoadedData":
         with self.db.load("average_result1", as_h5_object=True) as f:
