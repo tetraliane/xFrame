@@ -160,5 +160,6 @@ def plot(
     ax.axhline(0.5, color="black", linestyle="--")
     ax.set_xlabel("$q$ / $\\mathrm{\\AA}^{-1}$")
     ax.set_ylabel("FSC")
+    ax.set_ylim(-0.1, 1.1)
     ax.grid()
     return fig

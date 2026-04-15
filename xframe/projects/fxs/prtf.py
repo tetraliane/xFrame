@@ -45,6 +45,8 @@ class ProjectWorker(ProjectWorkerInterface):
             ax.plot(q, prtf)
             ax.axhline(1 / np.e, color="black", linestyle="--")
             ax.set_xlabel("$q$ / $\\mathrm{\\AA}^{-1}$")
+            ax.set_ylim(-0.1, 1.1)
+            ax.set_ylabel("PRTF")
             ax.grid()
             self.db.save(
                 "prtf_plot",
