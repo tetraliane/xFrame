@@ -41,10 +41,12 @@ class ProjectWorker(ProjectWorkerInterface):
         data = self.load_data(grid.real.shape[:3])
 
         aligner = create_aligner(average_settings, reconst_settings, self.db)
-        aligned = aligner.apply_to(data.average1.real, data.average2)
+        average1 = DataPair(*aligner.shift_to_center(*data.average1)[:2])
+        average2 = DataPair(*aligner.shift_to_center(*data.average2)[:2])
+        aligned = aligner.apply_to(average1.real, average2)
         new_average2 = aligned["densities"]
 
-        fsc = calc_fsc(ft, data.average1.real, new_average2[0])
+        fsc = calc_fsc(ft, average1.real, new_average2[0])
 
         if "fsc" in self.db.files:
             self.db.save(
@@ -63,7 +65,7 @@ class ProjectWorker(ProjectWorkerInterface):
         if "aligned_averages_vtk" in self.db.files:
             self.db.save(
                 "aligned_averages_vtk",
-                [np.real(data.average1.real), np.real(new_average2[0])],
+                [np.real(average1.real), np.real(new_average2[0])],
                 dset_names=["average1", "average2"],
                 grid=grid.real,
                 grid_type="spherical",
