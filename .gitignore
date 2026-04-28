@@ -21,7 +21,6 @@ source/fxs_test_3d/**
 *.egg-info/
 *.ipynb*
 *\*Python\*
-*_version.py
 
 # Distribution / packaging
 bin/
