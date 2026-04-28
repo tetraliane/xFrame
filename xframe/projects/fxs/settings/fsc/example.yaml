@@ -10,20 +10,42 @@ IO:
     results:
       home: results/
   files:
-    average_result1:
+    # Choose one of the following for the first data.
+    1_average:
       name: average_result1.h5
       folder: data
-    average_result2:
+    # 1_binary:
+    #   name: data1.bin
+    #   folder: data
+    #   options:
+    #     dtype: float32
+
+    # Choose one of the following for the second data.
+    2_average:
       name: average_result2.h5
       folder: data
+    # 2_binary:
+    #   name: data2.bin
+    #   folder: data
+    #   options:
+    #     dtype: float32
+
+    # Average or reconstruction result where the grid information is stored.
+    # [default: 1_average]
+    # grid_info:
+    #   name: average_result1.h5
+    #   folder: data
+
+    # Settings used for average command
     average_settings:
-      # Settings used for average command
       name: average_settings.yaml
       folder: data
+    # Settings used for reconstruction command
     reconstruction_settings:
-      # Settings used for reconstruction command
       name: reconstruction_settings.yaml
       folder: data
+
+    # Output files
     fsc:
       name: "{name}.h5"
       folder: results

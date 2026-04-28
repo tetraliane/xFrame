@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from typing import NamedTuple
 
@@ -18,37 +19,44 @@ from .prtf import ComplexFunc, generate_ft
 class ProjectWorker(ProjectWorkerInterface):
     settings: DictNamespace
     db: ProjectDB
+    ft: ComplexFunc
 
     def run(self):
-        data = self.load_from_average()
         average_settings = self.db.load("average_settings", path_modifiers={})
         SettingsParser(None).recursive_command_execution(average_settings, None, None)
         reconst_settings = self.db.load("reconstruction_settings", path_modifiers={})
-        reconst_settings["internal_grid"] = FTGridPair(*data.grid)
+
+        recip_coef = reconst_settings["fourier_transform"]["reciprocity_coefficient"]
+        grid = self.load_grid()
+        reconst_settings["internal_grid"] = FTGridPair(*grid)
+
+        ft, _ = generate_ft(
+            grid.real,
+            mode=self.settings.get("fourier_transform", {}).get("mode", "midpoint"),
+            max_order=self.settings.get("fourier_transform", {}).get("max_order", 30),
+            reciprocity_coef=recip_coef,
+        )
+        self.ft = ft
+
+        data = self.load_data(grid.real.shape[:3])
 
         aligner = create_aligner(average_settings, reconst_settings, self.db)
         aligned = aligner.apply_to(data.average1.real, data.average2)
         new_average2 = aligned["densities"]
 
-        ft, _ = generate_ft(
-            data.grid.real,
-            mode=self.settings.get("fourier_transform", {}).get("mode", "midpoint"),
-            max_order=self.settings.get("fourier_transform", {}).get("max_order", 30),
-            reciprocity_coef=data.reciprocity_coef,
-        )
         fsc = calc_fsc(ft, data.average1.real, new_average2[0])
 
         if "fsc" in self.db.files:
             self.db.save(
                 "fsc",
-                {"q": data.grid.reciprocal[:, 0, 0, 0], "fsc": fsc},
+                {"q": grid.reciprocal[:, 0, 0, 0], "fsc": fsc},
                 skip_custom_methods=False,
                 path_modifiers={"name": self.settings["name"]},
             )
         if "fsc_plot" in self.db.files:
             self.db.save(
                 "fsc_plot",
-                plot(data.grid.reciprocal[:, 0, 0, 0], fsc),
+                plot(grid.reciprocal[:, 0, 0, 0], fsc),
                 skip_custom_methods=False,
                 path_modifiers={"name": self.settings["name"]},
             )
@@ -57,44 +65,67 @@ class ProjectWorker(ProjectWorkerInterface):
                 "aligned_averages_vtk",
                 [np.real(data.average1.real), np.real(new_average2[0])],
                 dset_names=["average1", "average2"],
-                grid=data.grid.real,
+                grid=grid.real,
                 grid_type="spherical",
                 skip_custom_methods=True,
                 path_modifiers={"name": self.settings["name"]},
             )
 
-    def load_from_average(self) -> "LoadedData":
-        with self.db.load("average_result1", as_h5_object=True) as f:
+    def load_data(self, shape: tuple[int, int, int]) -> "LoadedData":
+        if "1_average" in self.db.files:
+            data = self.load_from_average("1_average")
+        elif "1_binary" in self.db.files:
+            data = self.load_from_binary("1_binary", shape)
+        else:
+            raise ValueError("Required data not found in the database.")
+
+        if "2_average" in self.db.files:
+            data2 = self.load_from_average("2_average")
+        elif "2_binary" in self.db.files:
+            data2 = self.load_from_binary("2_binary", shape)
+        else:
+            raise ValueError("Required data not found in the database.")
+
+        return LoadedData(
+            average1=data,
+            average2=data2,
+        )
+
+    def load_from_average(self, filename: str) -> "DataPair":
+        with self.db.load(filename, as_h5_object=True) as f:
             average_reconst1 = DataPair(
                 real=f["centered_average/real_density"][()],
                 reciprocal=f["centered_average/reciprocal_density"][()],
             )
-            grid = DataPair(
-                real=f["internal_grid"]["real_grid"][()],
-                reciprocal=f["internal_grid"]["reciprocal_grid"][()],
-            )
-            reciprocity_coef = f["reciprocity_coefficient"][()]
 
-        with self.db.load("average_result2", as_h5_object=True) as f:
-            average_reconst2 = DataPair(
-                real=f["centered_average/real_density"][()],
-                reciprocal=f["centered_average/reciprocal_density"][()],
-            )
+        return average_reconst1
 
-        return LoadedData(
-            average1=average_reconst1,
-            average2=average_reconst2,
-            grid=grid,
-            reciprocity_coef=reciprocity_coef,
+    def load_from_binary(
+        self, filename: str, shape: tuple[int, int, int]
+    ) -> "DataPair":
+        path = os.path.join(
+            self.db.folders[self.db.files[filename]["folder"]],
+            self.db.files[filename]["name"],
         )
+        dtype = self.db.files[filename]["options"]["dtype"]
+        data = np.fromfile(path, dtype=dtype).reshape(shape).astype(np.complex128)
+        data_ft = self.ft(data)
+        return DataPair(data, data_ft)
+
+    def load_grid(self) -> "DataPair":
+        filename = "grid_info" if "grid_info" in self.db.files else "1_average"
+        with self.db.load(filename, as_h5_object=True) as f:
+            grid = DataPair(
+                real=f["internal_grid/real_grid"][()],
+                reciprocal=f["internal_grid/reciprocal_grid"][()],
+            )
+        return grid
 
 
 @dataclass
 class LoadedData:
     average1: "DataPair"
     average2: "DataPair"
-    grid: "DataPair"
-    reciprocity_coef: float
 
 
 class DataPair(NamedTuple):
