@@ -451,8 +451,8 @@ class ProjectWorker(ProjectWorkerInterface):
             #log.info('ids per file = {}'.format(r_ids))
             average_scaling_factors_per_file[file_id] = np.mean(scaling_factors[r_ids])
 
-        reference_reconstruction = reconstructions.pop(reference_arg)
-        reference_mask = masks.pop(reference_arg)
+        reference_reconstruction = reconstructions[reference_arg]
+        reference_mask = masks[reference_arg]
         #log.info("opt pinv =  {}".format(opt.get("pointinvert_reference",False)))
         #log.info("opt =  {}".format(opt))
         if opt.get("pointinvert_reference",False):
@@ -474,11 +474,11 @@ class ProjectWorker(ProjectWorkerInterface):
         xprint('rotationaly aligning reconstructions to reference.')
         outs = []
         valid_errors = []
-        densities = [reference_reconstruction]
+        densities = []
         rotation_metrics = []
         rotation_angles = []
-        valid_alignments= [reference_reconstruction]
-        valid_alignment_ids = [0]
+        valid_alignments = []
+        valid_alignment_ids = []
         alignment_error_limit = settings.project.alignment_error_limit        
         if opt['multi_process']['use']:
             n_processes = opt['multi_process']['n_processes']
@@ -498,6 +498,7 @@ class ProjectWorker(ProjectWorkerInterface):
             for temp in outs:
                 for out in temp:
                     #log.info(out.keys())
+                    r_id = out[0]
                     out = out[1]
                     densities.append(out['densities'])
                     rotation_metrics.append(out['rotation_metrics'])
