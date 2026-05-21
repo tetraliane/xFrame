@@ -68,4 +68,4 @@ where = ["."]
 include = ["xframe*"]
 
 [tool.setuptools.dynamic]
-version = { attr = "xframe.__version__" }
+version = { attr = "xframe._version.__version__" }
