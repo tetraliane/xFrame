@@ -36,3 +36,6 @@ sdist/
 var/
 *.egg-info/
 *.egg
+
+.venv/
+venv/
