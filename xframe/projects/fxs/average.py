@@ -667,7 +667,7 @@ class ProjectWorker(ProjectWorkerInterface):
                 for key,value in h5_file['reconstruction_results'].items():
                     error = value['error_dict'][error_metric][-1]
                     if error < error_limit:
-                        reconstr = (value['last_real_density'][:],value['last_reciprocal_density'][:])
+                        reconstr = (value['real_density'][:], value['reciprocal_density'][:])
                         if self.valid_maximal_density(reconstr[0].real.max()):
                             errors.append(error)
                             reconstruction_keys[num][key] = len(reconstructions)
