@@ -120,16 +120,19 @@ class ProjectDB(DefaultDB,DatabaseInterface):
         #reciprocal_grid[...,0]*= (np.pi/reciprocity_coefficient) 
         vtk_saver = self.get_db('file://vtk').save
 
+        if dimension == 2:
+            grid_type = 'polar'
+        elif dimension == 3:
+            grid_type = 'spherical'
+        else:
+            raise ValueError(f'Unknown dimension {dimension}. Failed to generate vtk files.')
+
         if options['generate_average_vtk']:
             try:
                 real_density = data['average']['real_density']
                 normalized_real_density = data['average']['normalized_real_density']
                 reciprocal_density = data['average']['reciprocal_density']
 
-                if dimension == 2:
-                    grid_type = 'polar'
-                elif dimension == 3:
-                    grid_type = 'spherical'
                 real_vtk_path=self.get_path('real_vtk',path_modifiers={**path_modifiers,'reconstruction':'average'})
                 self.save(real_vtk_path,[real_density.real,normalized_real_density.real],grid = real_grid,dset_names=['density','normalized_density'],grid_type=grid_type)
                 #vtk_saver([real_density],real_grid,real_vtk_path,dset_names = ['density'],grid_type='spherical')
@@ -141,6 +144,36 @@ class ProjectDB(DefaultDB,DatabaseInterface):
                 traceback.print_exc()
                 log.error('Failed to generate aligned vtk.')
 
+        if options["generate_reference_vtk"]:
+            try:
+                real_density = data['reference']['real_density']
+                reciprocal_density = data['reference']['reciprocal_density']
+
+                real_vtk_path = self.get_path(
+                    "real_vtk",
+                    path_modifiers={**path_modifiers, "reconstruction": "reference"},
+                )
+                self.save(
+                    real_vtk_path,
+                    [real_density.real],
+                    grid=real_grid,
+                    dset_names=["density"],
+                    grid_type=grid_type,
+                )
+                reciprocal_vtk_path = self.get_path(
+                    "reciprocal_vtk",
+                    path_modifiers={**path_modifiers, "reconstruction": "reference"},
+                )
+                self.save(
+                    reciprocal_vtk_path,
+                    [np.abs(reciprocal_density).real ** 2],
+                    grid=reciprocal_grid,
+                    dset_names=["amplitude"],
+                    grid_type=grid_type,
+                )
+            except Exception:
+                traceback.print_exc()
+                log.error('Failed to generate reference vtk.')
                 
         if options['generate_aligned_vtk']:
             try:
@@ -149,10 +182,6 @@ class ProjectDB(DefaultDB,DatabaseInterface):
                     #log.info('averaged shape = {}'.format(real_density.shape))
                     #log.info('averaged grid shape = {}'.format(real_grid.shape))
                     reciprocal_density = result['reciprocal_density']
-                    if dimension == 2:
-                        grid_type = 'polar'
-                    elif dimension == 3:
-                        grid_type = 'spherical'                        
                     #vtk_saver([real_density],real_grid,real_vtk_path, dset_names = ['density'],grid_type='spherical')
                     real_vtk_path=self.get_path('real_vtk',path_modifiers={'time':time_str,'run':run,'reconstruction':'aligned_'+key})
                     #log.info(real_vtk_path)
@@ -173,11 +202,6 @@ class ProjectDB(DefaultDB,DatabaseInterface):
                     support_mask = result['support_mask']
                     reciprocal_density = result['reciprocal_density']
 
-                    if dimension == 2:
-                        grid_type = 'polar'
-                    elif dimension == 3:
-                        grid_type = 'spherical'
-                    
                     real_vtk_path=self.get_path('real_vtk',path_modifiers={**path_modifiers,'reconstruction':'input_'+key})
                     self.save(real_vtk_path,[real_density.real,support_mask],grid = real_grid,dset_names=['density','mask'],grid_type=grid_type)
                     #vtk_saver([real_density,support_mask],real_grid,real_vtk_path, dset_names = ['density','mask'],grid_type='spherical')

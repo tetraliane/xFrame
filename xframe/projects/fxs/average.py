@@ -586,6 +586,11 @@ class ProjectWorker(ProjectWorkerInterface):
                 'real_density':centered_average[0],'normalized_real_density':self.normalize_density(centered_average[0],d_min=average_normalization_min),'reciprocal_density':centered_average[1]
             },
             "average_ids": [valid_alignment_ids[i] for i in sorted_errors],
+            "reference": {
+                "id": reference_arg,
+                "real_density": reference_reconstruction[0],
+                "reciprocal_density": reference_reconstruction[1],
+            },
             "aligned":
             {
                 #**{
