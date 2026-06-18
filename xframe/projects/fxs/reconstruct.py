@@ -882,6 +882,17 @@ class MTIP:
                             real_pr.support = support
                             state['mask'] = real_pr.support #mask #mask
                             sw_step+=1
+                            log.info(
+                                'P{}: {} Loop:{} Method:{} Apply SW with sigma = {} and threshold = {}'.format(
+                                    Multiprocessing.get_process_name(),
+                                    loop_name,
+                                    iteration,
+                                    key,
+                                    self.projection_objects['sw'].gaussian_sigma,
+                                    self.projection_objects['sw'].threshold,
+                                )
+                            )
+                            
                             update_shrink_wrap(sw_step,loop_number)
                         elif key == 'SW_center':
                             enforce_initial_support = error_dict['main'][-1]>enforce_initial_support_error_limit
