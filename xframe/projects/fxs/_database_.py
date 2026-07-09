@@ -68,7 +68,8 @@ class ProjectDB(DefaultDB,DatabaseInterface):
 
         if "{run}" not in path:
             log.warning(
-                f'Folder "{folder_name}" does not contain a run number. Files may be overwritten.'
+                f'Folder "{folder_name}" does not contain a run number. '
+                'Existing folder is used and files may be overwritten.'
             )
             return 0
 
