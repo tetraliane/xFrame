@@ -160,6 +160,7 @@ def create_process_names(n,is_daemon=False):
     return names
 
 def get_free_cpus():
+    return len(os.sched_getaffinity(0))
     return get_local_cpu_count()-get_n_child_processes()-1
 def update_free_cpus():
     global free_cpus

@@ -122,6 +122,7 @@ def generate_ft(
         },
     )
     orders = np.arange(max_order + 1)
+    print(n_theta, n_phi)
 
     ft, ift = fourier_transforms.generate_ft(
         r_max,
