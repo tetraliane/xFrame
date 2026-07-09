@@ -65,7 +65,13 @@ class ProjectDB(DefaultDB,DatabaseInterface):
             path=self.folders[self.files[folder_name]['folder']]
         else:
             path = folder_name
-        
+
+        if "{run}" not in path:
+            log.warning(
+                f'Folder "{folder_name}" does not contain a run number. Files may be overwritten.'
+            )
+            return 0
+
         run=0
         path_modifiers['run']=run
         run_path=path.format(**path_modifiers)
