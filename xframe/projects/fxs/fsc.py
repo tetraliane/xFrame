@@ -141,7 +141,7 @@ def create_aligner(
     db: ProjectDB,
     grid: npt.NDArray,
 ) -> Alignment:
-    n_r, n_theta, n_phi = grid.shape
+    n_r, n_theta, n_phi = grid.shape[:3]
     aligner_options = {
         "opt": {
             "find_rotation": average_settings["find_rotation"],

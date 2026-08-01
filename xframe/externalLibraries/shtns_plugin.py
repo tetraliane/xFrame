@@ -115,7 +115,6 @@ class sh(SphericalHarmonicTransformInterface):
 
 
     def _generate_grid(self,n_phi=False,n_theta=False):
-        print("generate_grid: n_phi", n_phi, "n_theta", n_theta)
         sh=self._sh
         size_dict = self.n_angular_step_from_max_order(self.l_max)
         #log.info('n_theta = {}, n_phi = {}'.format(n_theta,n_phi))
@@ -133,7 +132,6 @@ class sh(SphericalHarmonicTransformInterface):
         phis=2*np.pi*np.arange(n_phi)/(n_phi*sh.mres)
         thetas=np.arccos(sh.cos_theta)
         grid=GridFactory.construct_grid('uniform',(thetas,phis))
-        print("generate_grid: n_phi", n_phi, "n_theta", n_theta)
         return thetas,phis,grid
 
 
