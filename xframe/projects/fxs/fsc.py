@@ -40,7 +40,7 @@ class ProjectWorker(ProjectWorkerInterface):
 
         data = self.load_data(grid.real.shape[:3])
 
-        aligner = create_aligner(average_settings, reconst_settings, self.db)
+        aligner = create_aligner(average_settings, reconst_settings, self.db, grid.real)
         average1 = DataPair(*aligner.shift_to_center(*data.average1)[:2])
         average2 = DataPair(*aligner.shift_to_center(*data.average2)[:2])
         aligned = aligner.apply_to(average1.real, average2)
@@ -136,8 +136,12 @@ class DataPair(NamedTuple):
 
 
 def create_aligner(
-    average_settings: DictNamespace, reconst_settings: DictNamespace, db: ProjectDB
+    average_settings: DictNamespace,
+    reconst_settings: DictNamespace,
+    db: ProjectDB,
+    grid: npt.NDArray,
 ) -> Alignment:
+    n_r, n_theta, n_phi = grid.shape
     aligner_options = {
         "opt": {
             "find_rotation": average_settings["find_rotation"],
@@ -147,9 +151,9 @@ def create_aligner(
         "r_opt": {
             "grid": {
                 "max_order": reconst_settings["grid"]["max_order"],
-                "n_radial_points": 128,
-                "n_theta": 72,
-                "n_phi": 140,
+                "n_radial_points": n_r,
+                "n_theta": n_theta,
+                "n_phi": n_phi,
             },
             "GPU": reconst_settings["GPU"],
             "internal_grid": reconst_settings["internal_grid"],
