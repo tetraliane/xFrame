@@ -1,5 +1,6 @@
 """Implementation of the PRTF calculation using the Kurta method. 3D only."""
 
+import logging
 from dataclasses import dataclass
 from typing import NamedTuple, Callable
 
@@ -12,8 +13,10 @@ from xframe.settings.tools import DictNamespace
 from ._database_ import ProjectDB
 from .projectLibrary import fourier_transforms, hankel_transforms
 from .projectLibrary.harmonic_transforms import HarmonicTransform
+from .projectLibrary.resolution_metrics import smooth_gaussian
 
 DIMENSIONS = 3
+logger = logging.getLogger(__name__)
 
 
 class ProjectWorker(ProjectWorkerInterface):
@@ -29,31 +32,40 @@ class ProjectWorker(ProjectWorkerInterface):
             max_order=self.settings.get("fourier_transform", {}).get("max_order", 30),
             reciprocity_coef=data.reciprocity_coef,
         )
+
+        q = data.grid.reciprocal[:, 0, 0, 0]
         prtf = prtf_kurta(ft, data.reconsts)
+        smoothed = smooth(q, prtf, self.settings.get("smoothing"))
 
         if "prtf" in self.db.files:
             self.db.save(
                 "prtf",
-                {"q": data.grid.reciprocal[:, 0, 0, 0], "prtf": prtf},
+                {"q": q, "prtf": prtf, "smooth_prtf": smoothed},
                 skip_custom_methods=False,
                 path_modifiers={"name": self.settings["name"]},
             )
         if "prtf_plot" in self.db.files:
-            fig = plt.figure(layout="constrained")
-            ax = fig.add_subplot()
-            q = data.grid.reciprocal[:, 0, 0, 0]
-            ax.plot(q, prtf)
-            ax.axhline(1 / np.e, color="black", linestyle="--")
-            ax.set_xlabel("$q$ / $\\mathrm{\\AA}^{-1}$")
-            ax.set_ylim(-0.1, 1.1)
-            ax.set_ylabel("PRTF")
-            ax.grid()
+            fig = plot(q, prtf)
             self.db.save(
                 "prtf_plot",
                 fig,
                 skip_custom_methods=False,
                 path_modifiers={"name": self.settings["name"]},
             )
+            plt.close(fig)
+        if "smooth_prtf_plot" in self.db.files:
+            for mode, y in smoothed.items():
+                fig = plot(q, y)
+                self.db.save(
+                    "smooth_prtf_plot",
+                    fig,
+                    skip_custom_methods=False,
+                    path_modifiers={
+                        "name": self.settings["name"],
+                        "smoothing_mode": mode,
+                    },
+                )
+                plt.close(fig)
 
     def load_from_average(self) -> "LoadedData":
         with self.db.load("average_result", as_h5_object=True) as f:
@@ -148,3 +160,49 @@ def prtf_kurta(ft: ComplexFunc, reconsts: list[DataPair]) -> npt.NDArray[np.floa
     prtf = np.abs(rho_ft_avg) / np.sqrt(intensity_avg)
     prtf_avg = np.mean(prtf, axis=(1, 2))
     return prtf_avg
+
+
+def smooth(
+    q: npt.NDArray[np.float64],
+    prtf: npt.NDArray[np.float64],
+    settings: dict | None,
+) -> dict[str, npt.NDArray[np.float64]]:
+    settings = settings or {}
+    smoothed = dict()
+
+    use_gaussian = settings.get("gaussian", {}).get("use", False)
+    if use_gaussian:
+        logger.info("Applying Gaussian smoothing to PRTF curve")
+
+        sigma = settings.get("gaussian", {}).get("sigma")
+        default_sigma = np.max(q) / 10
+
+        if sigma is None:
+            sigma = default_sigma
+            logger.warning(
+                f"Gaussian smoothing sigma not specified. Setting to: {sigma:.3f}"
+            )
+
+        try:
+            sigma = float(sigma)
+        except (ValueError, TypeError):
+            sigma = default_sigma
+            logger.warning(
+                f"Invalid sigma value for Gaussian smoothing: {sigma}. Setting to: {sigma:.3f}"
+            )
+
+        smoothed["gaussian"] = smooth_gaussian(q, prtf, sigma)
+
+    return smoothed
+
+
+def plot(q: npt.NDArray[np.float64], y: npt.NDArray[np.float64]) -> plt.Figure:
+    fig = plt.figure(layout="constrained")
+    ax = fig.add_subplot()
+    ax.plot(q, y)
+    ax.axhline(1 / np.e, color="black", linestyle="--")
+    ax.set_xlabel("$q$ / $\\mathrm{\\AA}^{-1}$")
+    ax.set_ylim(-0.1, 1.1)
+    ax.set_ylabel("PRTF")
+    ax.grid()
+    return fig

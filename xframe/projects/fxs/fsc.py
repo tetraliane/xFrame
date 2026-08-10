@@ -1,4 +1,5 @@
 import os
+import logging
 from dataclasses import dataclass
 from typing import NamedTuple
 
@@ -13,7 +14,10 @@ from ._database_ import ProjectDB
 from .average import Alignment
 from .projectLibrary.classes import FTGridPair
 from .projectLibrary.misk import get_analysis_process_factory
+from .projectLibrary.resolution_metrics import smooth_gaussian
 from .prtf import ComplexFunc, generate_ft
+
+logger = logging.getLogger(__name__)
 
 
 class ProjectWorker(ProjectWorkerInterface):
@@ -46,22 +50,35 @@ class ProjectWorker(ProjectWorkerInterface):
         aligned = aligner.apply_to(average1.real, average2)
         new_average2 = aligned["densities"]
 
+        q = grid.reciprocal[:, 0, 0, 0]
         fsc = calc_fsc(ft, average1.real, new_average2[0])
+        smoothed = smooth(q, fsc, self.settings.get("smoothing"))
 
         if "fsc" in self.db.files:
             self.db.save(
                 "fsc",
-                {"q": grid.reciprocal[:, 0, 0, 0], "fsc": fsc},
+                {"q": q, "fsc": fsc, "smooth_fsc": smoothed},
                 skip_custom_methods=False,
                 path_modifiers={"name": self.settings["name"]},
             )
         if "fsc_plot" in self.db.files:
             self.db.save(
                 "fsc_plot",
-                plot(grid.reciprocal[:, 0, 0, 0], fsc),
+                plot(q, fsc),
                 skip_custom_methods=False,
                 path_modifiers={"name": self.settings["name"]},
             )
+        if "smooth_fsc_plot" in self.db.files:
+            for mode, y in smoothed.items():
+                self.db.save(
+                    "smooth_fsc_plot",
+                    plot(q, y),
+                    skip_custom_methods=False,
+                    path_modifiers={
+                        "name": self.settings["name"],
+                        "smoothing_mode": mode,
+                    },
+                )
         if "aligned_averages_vtk" in self.db.files:
             self.db.save(
                 "aligned_averages_vtk",
@@ -185,6 +202,40 @@ def calc_fsc(
         fsc[i] = num / denom if denom > 0 else 0
 
     return fsc
+
+
+def smooth(
+    q: npt.NDArray[np.float64],
+    fsc: npt.NDArray[np.float64],
+    settings: dict | None,
+) -> dict[str, npt.NDArray[np.float64]]:
+    settings = settings or {}
+    smoothed = dict()
+
+    use_gaussian = settings.get("gaussian", {}).get("use", False)
+    if use_gaussian:
+        logger.info("Applying Gaussian smoothing to FSC curve")
+
+        sigma = settings.get("gaussian", {}).get("sigma")
+        default_sigma = np.max(q) / 10
+
+        if sigma is None:
+            sigma = default_sigma
+            logger.warning(
+                f"Gaussian smoothing sigma not specified. Setting to: {sigma:.3f}"
+            )
+
+        try:
+            sigma = float(sigma)
+        except (ValueError, TypeError):
+            sigma = default_sigma
+            logger.warning(
+                f"Invalid sigma value for Gaussian smoothing: {sigma}. Setting to: {sigma:.3f}"
+            )
+
+        smoothed["gaussian"] = smooth_gaussian(q, fsc, sigma)
+
+    return smoothed
 
 
 def plot(

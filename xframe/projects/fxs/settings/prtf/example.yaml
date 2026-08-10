@@ -1,7 +1,14 @@
 name: prtf_example
+
 fourier_transform:
   mode: midpoint
   max_order: 30
+
+smoothing:
+  gaussian:
+    use: true
+    sigma: 0.05 # Angstrom^-1
+
 IO:
   folders:
     home: /home/user/

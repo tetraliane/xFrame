@@ -1,8 +1,10 @@
-import numpy as np
 import logging
-log=logging.getLogger('root')
 
-from xframe.library.mathLibrary import SphericalIntegrator,PolarIntegrator,RadialIntegrator
+import numpy as np
+import numpy.typing as npt
+import scipy.ndimage
+
+log=logging.getLogger('root')
 
 
 ###### FSC/FRC #######
@@ -228,3 +230,21 @@ def FQCB_3D(bn1,bn2,return_2d_fqcb=False,skip_odd_orders=False,include_zero_orde
         return fqc,std,bb
     else:
         return fqc,std
+
+
+def smooth_gaussian(
+    q: npt.NDArray[np.float64], y: npt.NDArray[np.float64], sigma: float
+) -> npt.NDArray[np.float64]:
+    """Apply Gaussian smoothing to resolution metrics like PRTF/FSC.
+
+    Args:
+        q (npt.NDArray[np.float64]): The x-axis values. Assumes uniform spacing.
+        y (npt.NDArray[np.float64]): The y-axis values to be smoothed.
+        sigma (float): The standard deviation for Gaussian kernel in the same units as q.
+
+    Returns:
+        npt.NDArray[np.float64]: The smoothed y-axis values.
+    """
+    dq = np.mean(np.diff(q))
+    sigma_pixels = sigma / dq
+    return scipy.ndimage.gaussian_filter1d(y, sigma=sigma_pixels)

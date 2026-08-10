@@ -1,7 +1,14 @@
 name: fsc_example
+
 fourier_transform:
   mode: midpoint
   max_order: 30
+
+smoothing:
+  gaussian:
+    use: true
+    sigma: 0.05 # Angstrom^-1
+
 IO:
   folders:
     home: /home/user/
@@ -51,6 +58,13 @@ IO:
       folder: results
     fsc_plot:
       name: "{name}.matplotlib"
+      folder: results
+      options:
+        _format: png
+        dpi: 300
+        bbox_inches: tight
+    smooth_fsc_plot:
+      name: "{name}-{smoothing_mode}.matplotlib"
       folder: results
       options:
         _format: png
